@@ -8,7 +8,8 @@
 
 ### About the Experiment 
 
-Fill a brief description of this experiment here
+A VR project that demonstrates Malus’s Law by simulating polarized light and plotting light intensity versus rotation angle interactively.
+
 
 <b>Name of Developer | <b> Fill the name of experiment owner here 
 :--|:--|
@@ -20,5 +21,5 @@ Fill a brief description of this experiment here
 
 SrNo | Name | Faculty or Student | Department| Institute | Email id
 :--|:--|:--|:--|:--|:--|
-1 | . | shivam | . | . | .
+1 | .Shivam Mishra |  | . | . | .
 2 | . | . | . | . | .
