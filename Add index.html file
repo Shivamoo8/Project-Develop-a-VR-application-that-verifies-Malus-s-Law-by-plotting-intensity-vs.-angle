@@ -1,0 +1,268 @@
+index.html
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>VR Malus's Law Verification</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.3.2/dist/aframe-environment-component.min.js"></script>
+    
+    <style>
+      /* Hide the 2D canvas used for texture generation */
+      #graphCanvas { display: none; }
+    </style>
+  </head>
+  <body>
+
+    <!-- 2D Canvas for Generating the Graph Texture -->
+    <canvas id="graphCanvas" width="1024" height="512"></canvas>
+
+    <script>
+      // Global State
+      const state = {
+        angle: 0,       // Angle of analyzer in degrees
+        intensity: 1.0, // Calculated intensity (0 to 1)
+        isRotatingLeft: false,
+        isRotatingRight: false
+      };
+
+      // Component to handle the experiment logic
+      AFRAME.registerComponent('malus-lab', {
+        init: function () {
+          this.analyzer = document.querySelector('#analyzer-filter');
+          this.beamPost = document.querySelector('#beam-post');
+          this.screen = document.querySelector('#detector-screen');
+          this.textReadout = document.querySelector('#readout-text');
+          this.graphPlane = document.querySelector('#graph-plane');
+          
+          this.canvas = document.getElementById('graphCanvas');
+          this.ctx = this.canvas.getContext('2d');
+          
+          // Initial Graph Draw
+          this.updateGraph();
+        },
+
+        tick: function (time, timeDelta) {
+          let changed = false;
+
+          // Handle Rotation Input
+          const speed = 0.5; // Degrees per tick
+          if (state.isRotatingLeft) {
+            state.angle -= speed;
+            changed = true;
+          }
+          if (state.isRotatingRight) {
+            state.angle += speed;
+            changed = true;
+          }
+
+          // Normalize angle 0-360 for cleanliness
+          if (state.angle >= 360) state.angle = 0;
+          if (state.angle < 0) state.angle = 359;
+
+          if (changed) {
+            // Apply Malus's Law: I = I0 * cos^2(theta)
+            // Convert deg to rad
+            let rad = state.angle * (Math.PI / 180);
+            state.intensity = Math.pow(Math.cos(rad), 2);
+
+            // 1. Rotate the visual 3D Object
+            this.analyzer.object3D.rotation.z = rad;
+
+            // 2. Adjust Light Beam Opacity/Intensity
+            // We simulate dimming by changing opacity of the beam cylinder
+            this.beamPost.setAttribute('material', 'opacity', state.intensity * 0.8);
+            
+            // 3. Adjust Screen Brightness
+            // Screen goes from White (1) to Black (0)
+            let colorVal = Math.floor(state.intensity * 255);
+            this.screen.setAttribute('color', `rgb(${colorVal}, ${colorVal}, ${colorVal})`);
+
+            // 4. Update Text
+            this.textReadout.setAttribute('value', 
+              `Angle: ${Math.round(state.angle)} deg\nIntensity: ${(state.intensity * 100).toFixed(1)}%`
+            );
+
+            // 5. Update Graph
+            this.updateGraph();
+          }
+        },
+
+        updateGraph: function() {
+          const w = this.canvas.width;
+          const h = this.canvas.height;
+          const ctx = this.ctx;
+
+          // Background
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+
+          // Axes
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(50, h - 50); // Origin
+          ctx.lineTo(w - 20, h - 50); // X Axis
+          ctx.moveTo(50, h - 50);
+          ctx.lineTo(50, 20); // Y Axis
+          ctx.stroke();
+
+          // Labels
+          ctx.font = '30px Arial';
+          ctx.fillStyle = '#000000';
+          ctx.fillText("Angle (deg)", w/2, h - 10);
+          ctx.fillText("Intensity", 10, 40);
+
+          // Plot the Malus Curve (Cos^2)
+          ctx.beginPath();
+          ctx.strokeStyle = '#007bff'; // Blue line
+          ctx.lineWidth = 3;
+          
+          for (let x = 0; x < w - 70; x++) {
+            // Map x pixels to degrees (0 to 360)
+            let deg = (x / (w - 70)) * 360;
+            let rad = deg * (Math.PI / 180);
+            let yVal = Math.pow(Math.cos(rad), 2);
+            
+            // Map yVal (0-1) to pixels
+            let plotY = (h - 50) - (yVal * (h - 100));
+            
+            if (x===0) ctx.moveTo(50 + x, plotY);
+            else ctx.lineTo(50 + x, plotY);
+          }
+          ctx.stroke();
+
+          // Draw Current Position Dot
+          let currentX = (state.angle / 360) * (w - 70);
+          let currentY = (h - 50) - (state.intensity * (h - 100));
+
+          ctx.fillStyle = '#ff0000';
+          ctx.beginPath();
+          ctx.arc(50 + currentX, currentY, 10, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Force A-Frame to update texture
+          let material = this.graphPlane.getObject3D('mesh').material;
+          if (material.map) material.map.needsUpdate = true;
+        }
+      });
+
+      // Button interaction components
+      AFRAME.registerComponent('btn-rotate-left', {
+        init: function () {
+          this.el.addEventListener('mousedown', () => { state.isRotatingLeft = true; });
+          this.el.addEventListener('mouseup', () => { state.isRotatingLeft = false; });
+          this.el.addEventListener('mouseleave', () => { state.isRotatingLeft = false; }); // Safety
+        }
+      });
+
+      AFRAME.registerComponent('btn-rotate-right', {
+        init: function () {
+          this.el.addEventListener('mousedown', () => { state.isRotatingRight = true; });
+          this.el.addEventListener('mouseup', () => { state.isRotatingRight = false; });
+          this.el.addEventListener('mouseleave', () => { state.isRotatingRight = false; });
+        }
+      });
+
+    </script>
+
+    <!-- The 3D Scene -->
+    <a-scene malus-lab cursor="rayOrigin: mouse" raycaster="objects: .clickable">
+      
+      <!-- Environment: A simple lab grid -->
+      <a-entity environment="preset: starry; groundColor: #445; grid: 1x1"></a-entity>
+
+      <!-- Camera Rig -->
+      <a-entity position="0 1.6 4">
+        <a-camera look-controls wasd-controls>
+          <!-- Cursor for VR Gaze interaction -->
+          <a-cursor color="yellow" fuse="false"></a-cursor>
+        </a-camera>
+      </a-entity>
+
+      <!-- LIGHT SOURCE (Unpolarized) -->
+      <a-entity position="-2 1.5 -1">
+        <a-sphere color="#ffffaa" radius="0.2" shader="flat"></a-sphere>
+        <a-light type="point" intensity="0.5" distance="10" color="#fff"></a-light>
+        <a-text value="Light Source" position="0 0.4 0" align="center" side="double"></a-text>
+      </a-entity>
+
+      <!-- OPTICAL RAIL / TABLE -->
+      <a-box position="0 1 -1" width="6" height="0.1" depth="0.5" color="#333"></a-box>
+
+      <!-- 1. FIXED POLARIZER (Vertical) -->
+      <a-entity position="-1 1.5 -1">
+        <a-cylinder radius="0.4" height="0.05" rotation="90 0 0" color="#555" opacity="0.5" side="double">
+          <!-- Grating lines to visualize axis -->
+          <a-box position="0 0 0" width="0.02" height="0.7" depth="0.06" color="black"></a-box>
+          <a-ring radius-inner="0.38" radius-outer="0.4" color="gold"></a-ring>
+        </a-cylinder>
+        <a-text value="Polarizer\n(Fixed Vertical)" position="0 0.6 0" align="center" scale="0.5 0.5 0.5"></a-text>
+      </a-entity>
+
+      <!-- BEAM SEGMENT 1 (Between Polarizer and Analyzer) -->
+      <!-- Representing Polarized Light (Constant intensity) -->
+      <a-cylinder position="0 1.5 -1" rotation="0 0 90" height="2" radius="0.05" 
+                  color="#ffffaa" opacity="0.8" transparent="true"></a-cylinder>
+
+      <!-- 2. ANALYZER (Rotatable) -->
+      <a-entity id="analyzer-wrapper" position="1 1.5 -1">
+        <!-- The rotating part -->
+        <a-entity id="analyzer-filter">
+          <a-cylinder radius="0.4" height="0.05" rotation="90 0 0" color="#555" opacity="0.5" side="double">
+             <!-- Grating lines -->
+             <a-box position="0 0 0" width="0.02" height="0.7" depth="0.06" color="black"></a-box>
+             <a-ring radius-inner="0.38" radius-outer="0.4" color="red"></a-ring>
+          </a-cylinder>
+        </a-entity>
+        <a-text value="Analyzer\n(Rotatable)" position="0 0.6 0" align="center" scale="0.5 0.5 0.5"></a-text>
+      </a-entity>
+
+      <!-- BEAM SEGMENT 2 (After Analyzer - Intensity Changes) -->
+      <a-cylinder id="beam-post" position="2 1.5 -1" rotation="0 0 90" height="2" radius="0.05" 
+                  color="#ffffaa" opacity="0.8" transparent="true"></a-cylinder>
+
+      <!-- 3. DETECTOR SCREEN -->
+      <a-entity position="3 1.5 -1">
+        <a-plane id="detector-screen" width="1" height="1" color="#fff" side="double"></a-plane>
+        <a-text value="Detector" position="0 0.6 0" align="center"></a-text>
+      </a-entity>
+
+
+      <!-- CONTROL PANEL -->
+      <a-entity position="0 1 0.5" rotation="-30 0 0">
+        <a-box width="1.5" height="0.8" depth="0.1" color="#222"></a-box>
+        
+        <!-- Left Button -->
+        <a-entity position="-0.4 0 0.06" class="clickable" btn-rotate-left>
+           <a-box width="0.3" height="0.2" depth="0.05" color="red"></a-box>
+           <a-text value="< Rotate" position="0 0 0.03" align="center" scale="0.5 0.5 0.5"></a-text>
+        </a-entity>
+
+        <!-- Right Button -->
+        <a-entity position="0.4 0 0.06" class="clickable" btn-rotate-right>
+           <a-box width="0.3" height="0.2" depth="0.05" color="green"></a-box>
+           <a-text value="Rotate >" position="0 0 0.03" align="center" scale="0.5 0.5 0.5"></a-text>
+        </a-entity>
+
+        <!-- Readout -->
+        <a-text id="readout-text" value="Angle: 0\nIntensity: 100%" position="0 0.2 0.06" align="center"></a-text>
+      </a-entity>
+
+
+      <!-- DATA VISUALIZATION (Graph Board) -->
+      <a-entity position="2.5 2.5 0" rotation="0 -30 0">
+        <!-- Frame -->
+        <a-box width="3.2" height="1.7" depth="0.1" color="#333"></a-box>
+        
+        <!-- The Canvas Texture Plane -->
+        <a-plane id="graph-plane" position="0 0 0.06" width="3" height="1.5" color="#fff"
+                 material="src: #graphCanvas; transparent: true">
+        </a-plane>
+        
+        <a-text value="Intensity vs Angle (Malus's Law)" position="0 0.9 0" align="center"></a-text>
+      </a-entity>
+
+    </a-scene>
+  </body>
+</html>
