@@ -11,16 +11,16 @@
 
 A VR project that demonstrates Malus’s Law by simulating polarized light and plotting light intensity versus rotation angle interactively.
 
-
-<b>Shivam Mishra | <b> Information Tecnology
+<b>Name of Developer | <b> Shivam Mishra
 :--|:--|
-<b> Rajkiya Emgineering College Banda | <b>  
-<b> shivam83694232@gmail.com     <b>  
-<b> Information Technology |  
+<b> Institute | <b>  Rajkiya Engineering College
+<b> Email id|     <b>  2407340130056@recbanda.ac.in
+<b> Department |  Information Technology
+
 
 ### Contributors List
 
-SrNo | Name | Faculty or Student | Department| Institute | Email id
+SrNo | Name | Faculty of Student | Department| Institute | Email id
 :--|:--|:--|:--|:--|:--|
-1 | .Shivam Mishra |  | . | . | .
-2 | . | . | . | . | .
+1 | Shivam Mishra | Dr. Ashutosh Tiwari   | Information Technology | Rajkiya Engineering College Banda |2407340130056@recbanda.ac.in
+ 2 | . | . | . | . | .
